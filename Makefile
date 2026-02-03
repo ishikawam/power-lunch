@@ -1,8 +1,8 @@
 .DEFAULT_GOAL := help
 .PHONY: help html pdf preview open lint clean
 
-# 開催済みスライド: lunches/01-conference/, lunches/02-regex/ など
-SESSIONS := $(wildcard lunches/[0-9][0-9]-*/slide.md)
+# 開催済みスライド: lunches/01/, lunches/02/ など
+SESSIONS := $(wildcard lunches/[0-9][0-9]/slide.md)
 # アイデアスライド
 IDEAS := $(wildcard ideas/slides/*.md)
 # 全スライド
@@ -64,7 +64,7 @@ open: ## スライドを選択してHTMLを開く
 	done
 
 lint: ## Markdownをリント・自動修正
-	@npx markdownlint-cli --fix $(SLIDES) ideas/docs/*.md lunches/[0-9][0-9]-*/*.md 2>/dev/null || true
+	@npx markdownlint-cli --fix $(SLIDES) ideas/docs/*.md lunches/[0-9][0-9]/*.md 2>/dev/null || true
 
 clean: ## 生成ファイル削除
 	rm -rf dist/
