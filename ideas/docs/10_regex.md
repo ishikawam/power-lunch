@@ -468,6 +468,298 @@ IPアドレスにマッチさせたい
 
 ---
 
+## ライブデモ: regex101.com で実演
+
+### デモ内容
+
+- 実際にパターンを書いて動かす
+- 参加者にお題を出してもらう
+- 「このログからエラーだけ抜き出して」など
+
+### お題例
+
+1. ログから ERROR 行だけ抽出
+2. URLからドメイン部分を抽出
+3. CSVの特定カラムを取得
+
+---
+
+## 正規表現 vs 専用パーサー
+
+### 正規表現でやるべきではないもの
+
+#### メールアドレス検証
+
+RFC 5322 に完全準拠した正規表現は約6,000文字。実用的ではない。
+
+```
+(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@...（続く）
+```
+
+#### HTMLパース
+
+有名な Stack Overflow の回答より:
+
+> You can't parse [X]HTML with regex. HTML is not a regular language and hence cannot be parsed by regular expressions.
+
+正規表現でHTMLをパースしようとすると、ネストや属性の順序、コメントなど無限のエッジケースにハマる。
+
+#### JSONパース
+
+再帰構造を持つため、正規表現では原理的に不可能。
+
+### 代わりに使うべきもの
+
+| データ形式 | 推奨ライブラリ |
+|-----------|---------------|
+| メール | 言語標準のバリデータ、実際に送信して確認 |
+| HTML | DOMParser, BeautifulSoup, Cheerio |
+| JSON | JSON.parse(), json.loads() |
+| URL | URL API, urllib.parse |
+| XML | XMLパーサー |
+
+---
+
+## 正規表現ゴルフ
+
+最短の正規表現で条件を満たすゲーム。
+
+### 問題1: 偶数にマッチ
+
+```regex
+[02468]$
+```
+
+末尾が偶数なら偶数。
+
+### 問題2: 回文っぽい3文字
+
+```regex
+(.).\1
+```
+
+後方参照で最初と最後が同じ文字。
+
+### 問題3: 連続する同じ文字
+
+```regex
+(.)\1
+```
+
+### 問題4: 空行以外
+
+```regex
+.
+```
+
+`.` は1文字以上にマッチするので、空行にはマッチしない。
+
+### 問題5: 母音を含まない単語
+
+```regex
+^[^aeiou]+$
+```
+
+---
+
+## AIに正規表現を書かせる
+
+### 実験: ChatGPT/Claude に聞いてみる
+
+プロンプト例:
+- 「日本の電話番号にマッチする正規表現を書いて」
+- 「IPv4アドレスにマッチする正規表現を書いて」
+- 「クレジットカード番号にマッチする正規表現を書いて」
+
+### 結果
+
+- 簡単なパターン: ほぼ正確
+- 複雑なパターン: 微妙に間違えることがある
+- エッジケース: 考慮漏れが多い
+
+### 教訓
+
+- AIの出力は必ず regex101.com で検証
+- 複雑なパターンは分割して確認
+- 完全に信頼せず、テストケースを用意
+
+---
+
+## 正規表現の歴史
+
+### 年表
+
+| 年 | 出来事 |
+|----|--------|
+| 1956 | 数学者スティーブン・クリーネが「正規表現」を考案 |
+| 1968 | Ken Thompson が QED エディタに実装 |
+| 1973 | grep 誕生（g/re/p = global regular expression print） |
+| 1987 | Perl 登場、正規表現が強力に |
+| 1997 | PCRE（Perl Compatible Regular Expressions）登場 |
+| 2007 | RE2 登場（Googleによる高速・安全な実装） |
+
+### 「正規」の由来
+
+- 英語: Regular Expression
+- 「正規言語（Regular Language）」を表現するための記法
+- 形式言語理論における「正規文法」に由来
+- 計算理論では有限オートマトンで認識可能な言語
+
+### grep の由来
+
+```
+g/re/p
+```
+
+- g: global（全体に対して）
+- re: regular expression（正規表現で）
+- p: print（表示）
+
+ed エディタのコマンドから来ている。
+
+---
+
+## パフォーマンス比較
+
+### 同じ結果でも書き方で速度が変わる
+
+#### 例1: クォート内の文字列を取得
+
+```regex
+# 遅い
+".*"
+
+# 速い
+"[^"]*"
+```
+
+`.*` は貪欲マッチで最後まで進んでからバックトラック。
+`[^"]*` は `"` 以外にだけマッチするので無駄がない。
+
+#### 例2: OR条件の順序
+
+```regex
+# 遅い（よくマッチする方が後ろ）
+/^(rare|common)/
+
+# 速い（よくマッチする方が前）
+/^(common|rare)/
+```
+
+最初の選択肢から試すので、頻出パターンを前に。
+
+### ReDoS の計測
+
+```javascript
+const pattern = /^(a+)+$/;
+const input = 'a'.repeat(25) + 'X';
+
+console.time('regex');
+pattern.test(input);
+console.timeEnd('regex');
+// regex: 数秒〜数十秒かかる
+```
+
+### 安全な正規表現エンジン
+
+- RE2（Google）: バックトラックしない、線形時間保証
+- Go の regexp パッケージは RE2 ベース
+
+---
+
+## 実際の事故事例
+
+### Cloudflare 障害（2019年7月2日）
+
+**影響:** 全世界のCDNが約27分間ダウン。Discord、Coinbase、Feedly など多数のサービスに影響。
+
+**原因:** WAF（Webアプリケーションファイアウォール）に追加された正規表現が、CPU使用率を100%に。
+
+```regex
+(?:(?:\"|'|\]|\}|\\|\d|(?:nan|infinity|true|false|null|undefined|symbol|math)|\`|\-|\+)+[)]*;?((?:\s|-|~|!|{}|\|\||\+)*.*(?:.*=.*)))
+```
+
+**対応:** 正規表現エンジンをRustのRE2ベースに切り替え。
+
+**参照:** [Details of the Cloudflare outage on July 2, 2019](https://blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/)
+
+---
+
+### Stack Overflow 障害（2016年）
+
+**影響:** 34分間のサービス停止。
+
+**原因:** 投稿に約20,000個の連続した空白文字が含まれていた。
+
+```regex
+^[\s\u200c]+|[\s\u200c]+$
+```
+
+この正規表現がバックトラックを繰り返し、約2億回のチェックが発生。
+
+**教訓:** 入力文字数の制限、正規表現のパフォーマンステストの重要性。
+
+---
+
+### その他の事例
+
+- **2024年調査:** 人気のGitHubプロジェクトの10%以上にReDoS脆弱性が存在
+- 多くのインシデントは報告されず、パフォーマンス問題として誤診断されている可能性
+
+---
+
+## 正規表現と仲良くなるためのリソース
+
+### テスト・デバッグツール
+
+| ツール | URL | 特徴 |
+|--------|-----|------|
+| **regex101** | https://regex101.com/ | 最も人気。解説付き、複数言語対応 |
+| **RegExr** | https://regexr.com/ | ビジュアル解説、リファレンス充実 |
+| **Rubular** | https://rubular.com/ | Ruby向け、シンプルなUI |
+| **Debuggex** | https://www.debuggex.com/ | 鉄道図（Railroad Diagram）で可視化 |
+
+---
+
+### 学習サイト
+
+| サイト | URL | 特徴 |
+|--------|-----|------|
+| **RegexLearn** | https://regexlearn.com/ | ステップバイステップ、無料 |
+| **RegexOne** | https://regexone.com/ | インタラクティブな練習問題 |
+| **ドットインストール** | https://dotinstall.com/lessons/basic_regexp_v2 | 日本語動画、全18回 |
+| **Qiita 正規表現入門** | https://qiita.com/jnchito/items/893c887fbf19e17d3ff9 | 手と目で覚える入門記事 |
+
+---
+
+### 楽しく学ぶ
+
+| ツール | URL | 特徴 |
+|--------|-----|------|
+| **Regex Crossword** | https://regexcrossword.com/ | 正規表現クロスワードパズル |
+| **Regex Golf** | https://alf.nu/RegexGolf | 最短パターンを競う |
+| **Regex Hunting** | 検索で | ゲーム感覚、日本語対応 |
+
+---
+
+### リファレンス・チートシート
+
+| リソース | URL | 特徴 |
+|----------|-----|------|
+| **RexEgg** | https://www.rexegg.com/ | 詳細なチュートリアル |
+| **learn-regex (GitHub)** | https://github.com/ziishaned/learn-regex | 日本語訳あり |
+| **MDN 正規表現** | https://developer.mozilla.org/ja/docs/Web/JavaScript/Guide/Regular_Expressions | JavaScript向け公式ドキュメント |
+
+---
+
+### AI活用
+
+- **ChatGPT / Claude:** 「〜にマッチする正規表現を書いて」
+- **RegEx Generator:** https://regex-generator.olafneumann.org/
+- 必ず regex101.com で検証すること
+
+---
+
 ## 話せること
 
 - 基本構文のおさらい
@@ -475,4 +767,12 @@ IPアドレスにマッチさせたい
 - ツール・言語ごとの違い
 - デバッグ方法
 - やらかし事例
+- 実際の事故事例（Cloudflare、Stack Overflow）
 - 正規表現クイズ
+- ライブデモ
+- 正規表現 vs 専用パーサー
+- 正規表現ゴルフ
+- AIに正規表現を書かせる
+- 正規表現の歴史
+- パフォーマンス比較
+- 学習リソース紹介
