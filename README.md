@@ -10,14 +10,17 @@ SDBパワーランチの発表資料管理リポジトリ
 
 ```
 .
-├── 01/                     # 第1回発表資料
-│   ├── announcement.md     # 告知文
-│   ├── script.md           # 発表原稿
-│   └── slide.md            # スライド（Marp形式）
+├── lunches/                # 開催済み発表資料
+│   └── 01/                 # 第1回
+│       ├── announcement.md # 告知文
+│       ├── script.md       # 発表原稿
+│       └── slide.md        # スライド（Marp形式）
 ├── ideas/                  # ネタ候補
 │   ├── docs/               # 原稿・メモ
 │   └── slides/             # スライド（Marp形式）
 ├── dist/                   # 生成物（HTML/PDF）
+│   ├── lunches/01/         # lunches/01/slide.md → slide.html
+│   └── ideas/slides/       # ideas/slides/xxx.md → xxx.html
 └── Makefile
 ```
 
@@ -33,7 +36,7 @@ ideas/docs/ に新しいネタ候補を作成して
 
 ```
 ideas/docs/01_claude-code.md を元に Marp形式のスライドを作成して
-ideas/slides/01_claude-code.md に保存して
+ideas/slides/ に保存して
 ```
 
 ### 3. 発表資料の確定
@@ -42,7 +45,7 @@ ideas/slides/01_claude-code.md に保存して
 
 ```
 ideas/slides/12_conferences.md を元に、第1回発表用の資料を作成して
-01/slide.md に保存して
+lunches/01/slide.md に保存して
 告知文と発表原稿も作成して
 ```
 
@@ -63,8 +66,7 @@ make html         # 全スライドをHTMLに変換
 make pdf          # 全スライドをPDFに変換
 make preview      # スライドを選択してプレビュー
 make open         # スライドを選択してHTMLを開く
-make lint         # Markdownをリント
-make fix          # Markdownを自動修正
+make lint         # Markdownをリント・自動修正
 make clean        # 生成ファイル削除
 ```
 
