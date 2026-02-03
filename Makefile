@@ -1,33 +1,32 @@
 .DEFAULT_GOAL := help
-.PHONY: help html pdf preview open lint fix clean
+.PHONY: help html pdf preview open lint clean
 
-SLIDES := 01/slide.md $(wildcard ideas/slides/*.md)
+# 開催済みスライド: lunches/01-conference/, lunches/02-regex/ など
+SESSIONS := $(wildcard lunches/[0-9][0-9]-*/slide.md)
+# アイデアスライド
+IDEAS := $(wildcard ideas/slides/*.md)
+# 全スライド
+SLIDES := $(SESSIONS) $(IDEAS)
 
 help: ## ヘルプ表示
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 html: ## 全スライドをHTMLに変換
 	@for slide in $(SLIDES); do \
-		if echo "$$slide" | grep -q "^ideas/slides/"; then \
-			num=$$(echo "$$slide" | sed 's/ideas\/slides\/\([0-9]*\)_.*/\1/'); \
-			mkdir -p "dist/$$num"; \
-			output="dist/$$num/slide.html"; \
-		else \
-			output=$${slide%.md}.html; \
-		fi; \
+		dir=$$(dirname "$$slide"); \
+		name=$$(basename "$$slide" .md); \
+		mkdir -p "dist/$$dir"; \
+		output="dist/$$dir/$$name.html"; \
 		echo "Building $$output..."; \
 		npx @marp-team/marp-cli "$$slide" -o "$$output"; \
 	done
 
 pdf: ## 全スライドをPDFに変換
 	@for slide in $(SLIDES); do \
-		if echo "$$slide" | grep -q "^ideas/slides/"; then \
-			num=$$(echo "$$slide" | sed 's/ideas\/slides\/\([0-9]*\)_.*/\1/'); \
-			mkdir -p "dist/$$num"; \
-			output="dist/$$num/slide.pdf"; \
-		else \
-			output=$${slide%.md}.pdf; \
-		fi; \
+		dir=$$(dirname "$$slide"); \
+		name=$$(basename "$$slide" .md); \
+		mkdir -p "dist/$$dir"; \
+		output="dist/$$dir/$$name.pdf"; \
 		echo "Building $$output..."; \
 		npx @marp-team/marp-cli "$$slide" -o "$$output"; \
 	done
@@ -51,32 +50,21 @@ open: ## スライドを選択してHTMLを開く
 			echo "キャンセルしました"; \
 			break; \
 		elif [ -n "$$slide" ]; then \
-			if echo "$$slide" | grep -q "^ideas/slides/"; then \
-				num=$$(echo "$$slide" | sed 's/ideas\/slides\/\([0-9]*\)_.*/\1/'); \
-				html="dist/$$num/slide.html"; \
-				if [ ! -f "$$html" ]; then \
-					mkdir -p "dist/$$num"; \
-					echo "HTMLを生成中..."; \
-					npx @marp-team/marp-cli "$$slide" -o "$$html"; \
-				fi; \
-			else \
-				html=$${slide%.md}.html; \
-				if [ ! -f "$$html" ]; then \
-					echo "HTMLを生成中..."; \
-					npx @marp-team/marp-cli "$$slide" -o "$$html"; \
-				fi; \
+			dir=$$(dirname "$$slide"); \
+			name=$$(basename "$$slide" .md); \
+			html="dist/$$dir/$$name.html"; \
+			if [ ! -f "$$html" ]; then \
+				mkdir -p "dist/$$dir"; \
+				echo "HTMLを生成中..."; \
+				npx @marp-team/marp-cli "$$slide" -o "$$html"; \
 			fi; \
 			open "$$html"; \
 			break; \
 		fi; \
 	done
 
-lint: ## Markdownをリント
-	@npx markdownlint-cli $(SLIDES) ideas/docs/*.md 01/*.md || true
-
-fix: ## Markdownを自動修正
-	@npx markdownlint-cli --fix $(SLIDES) ideas/docs/*.md 01/*.md || true
+lint: ## Markdownをリント・自動修正
+	@npx markdownlint-cli --fix $(SLIDES) ideas/docs/*.md lunches/[0-9][0-9]-*/*.md 2>/dev/null || true
 
 clean: ## 生成ファイル削除
 	rm -rf dist/
-	rm -f 01/*.html 01/*.pdf
